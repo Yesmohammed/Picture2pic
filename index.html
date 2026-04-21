@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>مُحدِّد المنتجات | السعر والكمية</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: #0a1a2e;
+            font-family: 'Segoe UI', 'Cairo', system-ui, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: fixed;
+            touch-action: manipulation;
+        }
+
+        .fullscreen-app {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f4f7fc;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* شريط رقم الجوال */
+        .phone-bar {
+            background: #1e293b;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #ffb347;
+            z-index: 20;
+        }
+        .phone-label {
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+            background: #ff9800;
+            padding: 4px 10px;
+            border-radius: 40px;
+        }
+        .phone-input {
+            flex: 2;
+            min-width: 150px;
+            padding: 8px 12px;
+            border-radius: 60px;
+            border: none;
+            font-size: 0.95rem;
+            text-align: left;
+            direction: ltr;
+            font-family: monospace;
+            background: #fef9e8;
+            border: 1px solid #ffb347;
+        }
+        .error-msg {
+            color: #ffb347;
+            font-size: 0.65rem;
+            display: none;
+        }
+
+        .canvas-container {
+            flex: 1;
+            background: #d9e2ef;
+            position: relative;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: auto;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            display: block;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border-radius: 20px;
+            cursor: crosshair;
+            background: white;
+        }
+        .upload-overlay {
+            position: absolute;
+            background: #ffffffdd;
+            backdrop-filter: blur(8px);
+            padding: 20px;
+            border-radius: 48px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 15;
+        }
+        .upload-btn-big {
+            background: #2c5a9e;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 60px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            display: inline-flex;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .hidden-input {
+            display: none;
+        }
+        .action-bar {
+            background: #ffffffdd;
+            backdrop-filter: blur(12px);
+            padding: 10px 16px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            border-top: 1px solid #cbd5e1;
+            z-index: 20;
+        }
+        .action-btn {
+            flex: 1;
+            background: #1e3c72;
+            border: none;
+            padding: 10px;
+            border-radius: 60px;
+            font-weight: bold;
+            color: white;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .action-btn.whatsapp { background: #25D366; }
+        .action-btn.telegram { background: #0088cc; }
+        .action-btn.clear { background: #7f8c8d; }
+        .action-btn:active { transform: scale(0.97); }
+
+        /* فقاعة العدد والسعر */
+        .bubble-popup {
+            position: fixed;
+            background: rgba(20, 20, 30, 0.96);
+            backdrop-filter: blur(20px);
+            border-radius: 28px;
+            padding: 12px 16px;
+            min-width: 240px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            z-index: 200;
+        }
+        .bubble-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+        .bubble-title {
+            color: #ffd966;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .input-group {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px;
+            padding: 8px;
+        }
+        .input-label {
+            color: #ffd966;
+            font-size: 0.7rem;
+            text-align: center;
+        }
+        .slider-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        input[type="range"] {
+            width: 180px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #ffb347;
+            border-radius: 5px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+        }
+        .number-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 40px;
+            padding: 4px 12px;
+        }
+        .num-field, .price-field {
+            width: 70px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: white;
+            border: none;
+            border-radius: 30px;
+            padding: 4px;
+            font-family: monospace;
+        }
+        .num-btn {
+            background: #ffb347;
+            border: none;
+            width: 32px;
+            height: 32px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 40px;
+            cursor: pointer;
+            color: #1e293b;
+        }
+        .confirm-bubble {
+            background: #2ecc71;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            color: white;
+            font-size: 0.9rem;
+            width: 100%;
+            margin-top: 4px;
+            cursor: pointer;
+        }
+        @media (max-width: 550px) {
+            .bubble-popup { min-width: 200px; padding: 10px; }
+            input[type="range"] { width: 150px; }
+        }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+<div class="fullscreen-app" id="appRoot">
+    <div class="phone-bar">
+        <span class="phone-label">📞 رقم الجوال *</span>
+        <input type="tel" id="customerPhone" class="phone-input" placeholder="05xxxxxxxx" inputmode="numeric" pattern="[0-9]{9,15}" required>
+        <div class="error-msg" id="phoneError">الرقم مطلوب لمشاركة الصورة</div>
+    </div>
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="mainCanvas" width="800" height="600" style="max-width:100%; max-height:100%;"></canvas>
+        <div id="uploadPlaceholder" class="upload-overlay">
+            <button class="upload-btn-big" id="uploadBtn">📸 ارفع صورة المنتجات</button>
+            <div style="margin-top: 8px; font-size:0.7rem;">🖱️ بعد الرفع: اضغط على الصورة لتحديد السعر والكمية</div>
+        </div>
+    </div>
+    <div class="action-bar">
+        <button class="action-btn clear" id="clearMarksBtn">🗑️ مسح الكل</button>
+        <button class="action-btn whatsapp" id="shareWhatsBtn">💬 واتساب</button>
+        <button class="action-btn telegram" id="shareTeleBtn">📲 تليجرام</button>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // العناصر
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/jpeg,image/png,image/jpg';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        
+        const phoneInput = document.getElementById('customerPhone');
+        const phoneError = document.getElementById('phoneError');
+        const clearBtn = document.getElementById('clearMarksBtn');
+        const shareWhatsBtn = document.getElementById('shareWhatsBtn');
+        const shareTeleBtn = document.getElementById('shareTeleBtn');
+        
+        // بيانات التطبيق
+        let originalImage = null;
+        let imageLoaded = false;
+        let marks = [];        // كل علامة: { id, x, y, price, quantity, color }
+        let nextId = 1;
+        
+        // ألوان مبهجة
+        const colorPalette = ["#E53935","#F57C00","#2E7D32","#1E88E5","#8E24AA","#00ACC1","#FDD835","#FB8C00","#6D4C41","#D81B60","#43A047","#039BE5","#FF6D00","#3949AB","#E91E63"];
+        
+        let activeBubble = null;
+        let pendingMarkPosition = null;
+        
+        // ------------------- الرسم الرئيسي (علامات كبيرة + سعر وكمية) ------------------
+        function drawCanvasWithMarks() {
+            if (!imageLoaded || !originalImage) {
+                ctx.fillStyle = "#eef2f5";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#2c5a9e";
+                ctx.font = "bold 20px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.fillText("📷 انتظر رفع الصورة", canvas.width/2, canvas.height/2);
+                return;
+            }
+            // ضبط أبعاد canvas حسب الصورة الأصلية
+            canvas.width = originalImage.width;
+            canvas.height = originalImage.height;
+            ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+            
+            // رسم رقم الجوال كعنوان رئيسي في أعلى الصورة
+            let phoneNumber = phoneInput.value.trim();
+            if (phoneNumber === "") phoneNumber = "رقم غير مضبوط";
+            ctx.font = "bold 38px 'Segoe UI', 'Cairo'";
+            const textWidth = ctx.measureText(`📞 ${phoneNumber}`).width;
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(15, 10, textWidth + 40, 65);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 36px 'Segoe UI', 'Cairo'";
+            ctx.shadowBlur = 0;
+            ctx.fillText(`📞 ${phoneNumber}`, 22, 58);
+            ctx.fillStyle = "#FFD966";
+            ctx.fillText(`📞 ${phoneNumber}`, 20, 56);
+            
+            // رسم العلامات: دائرة كبيرة، السعر في الأعلى، الكمية في الأسفل
+            marks.forEach(mark => {
+                const { x, y, price, quantity, color } = mark;
+                ctx.save();
+                ctx.shadowBlur = 0;
+                // دائرة خارجية كبيرة
+                ctx.beginPath();
+                ctx.arc(x, y, 60, 0, 2 * Math.PI);
+                ctx.fillStyle = color + "CC";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, y, 56, 0, 2 * Math.PI);
+                ctx.fillStyle = color;
+                ctx.fill();
+                // منطقة بيضاء داخلية
+                ctx.beginPath();
+                ctx.arc(x, y, 46, 0, 2 * Math.PI);
+                ctx.fillStyle = "#fff9e8";
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, y, 44, 0, 2 * Math.PI);
+                ctx.fillStyle = "#ffffff";
+                ctx.fill();
+                
+                // كتابة السعر (أعلى)
+                ctx.font = "bold 26px 'Segoe UI', 'Cairo'";
+                ctx.fillStyle = "#1f2937";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(`${price} ريال`, x, y - 18);
+                
+                // كتابة الكمية (أسفل)
+                ctx.font = "bold 28px 'Segoe UI', 'Cairo'";
+                ctx.fillStyle = "#d32f2f";
+                ctx.fillText(`× ${quantity}`, x, y + 24);
+                
+                // هالة خارجية
+                ctx.beginPath();
+                ctx.arc(x, y, 66, 0, 2 * Math.PI);
+                ctx.strokeStyle = "#FFD966";
+                ctx.lineWidth = 6;
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+        
+        function refreshUI() {
+            drawCanvasWithMarks();
+        }
+        
+        function closeBubble() {
+            if (activeBubble) {
+                activeBubble.remove();
+                activeBubble = null;
+            }
+            pendingMarkPosition = null;
+        }
+        
+        // فقاعة تحتوي على الكمية (سلايدر) والسعر (حقل إدخال)
+        function showNumberPriceBubble(clientX, clientY, canvasCoords) {
+            closeBubble();
+            pendingMarkPosition = canvasCoords;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'bubble-popup';
+            bubbleDiv.style.left = (clientX - 120) + 'px';
+            bubbleDiv.style.top = (clientY - 170) + 'px';
+            // ضبط إذا خرجت عن الشاشة
+            if (parseInt(bubbleDiv.style.left) < 10) bubbleDiv.style.left = '10px';
+            if (parseInt(bubbleDiv.style.top) < 10) bubbleDiv.style.top = '30px';
+            
+            bubbleDiv.innerHTML = `
+                <div class="bubble-content">
+                    <div class="bubble-title">💰 السعر والكمية</div>
+                    <div class="input-group">
+                        <div class="input-label">السعر (ريال)</div>
+                        <input type="number" id="priceInput" class="price-field" value="0" min="0" step="1" placeholder="السعر">
+                    </div>
+                    <div class="input-group">
+                        <div class="input-label">الكمية</div>
+                        <div class="slider-container">
+                            <input type="range" id="quantitySlider" min="1" max="100" value="1" step="1">
+                            <div class="number-input">
+                                <button class="num-btn" data-delta="-1">−</button>
+                                <input type="number" id="quantityNumber" class="num-field" value="1" min="1" max="100">
+                                <button class="num-btn" data-delta="1">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="confirm-bubble" id="confirmBtn">✔ تأكيد</button>
+                </div>
+            `;
+            document.body.appendChild(bubbleDiv);
+            activeBubble = bubbleDiv;
+            
+            const slider = bubbleDiv.querySelector('#quantitySlider');
+            const quantityInput = bubbleDiv.querySelector('#quantityNumber');
+            const priceInput = bubbleDiv.querySelector('#priceInput');
+            
+            // مزامنة السلايدر مع الحقل الرقمي للكمية
+            const syncQuantity = (val) => {
+                let v = parseInt(val);
+                if (isNaN(v)) v = 1;
+                v = Math.min(100, Math.max(1, v));
+                slider.value = v;
+                quantityInput.value = v;
+            };
+            
+            slider.addEventListener('input', () => {
+                quantityInput.value = slider.value;
+            });
+            quantityInput.addEventListener('input', () => {
+                let v = parseInt(quantityInput.value);
+                if (isNaN(v)) v = 1;
+                v = Math.min(100, Math.max(1, v));
+                slider.value = v;
+                quantityInput.value = v;
+            });
+            
+            // أزرار + و - للكمية
+            bubbleDiv.querySelectorAll('.num-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const delta = parseInt(btn.getAttribute('data-delta'));
+                    let current = parseInt(quantityInput.value);
+                    let newVal = current + delta;
+                    if (newVal < 1) newVal = 1;
+                    if (newVal > 100) newVal = 100;
+                    syncQuantity(newVal);
+                });
+            });
+            
+            const confirmBtn = bubbleDiv.querySelector('#confirmBtn');
+            confirmBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (pendingMarkPosition) {
+                    let price = parseFloat(priceInput.value);
+                    if (isNaN(price)) price = 0;
+                    let quantity = parseInt(quantityInput.value);
+                    if (isNaN(quantity)) quantity = 1;
+                    addMarkAt(pendingMarkPosition.canvasX, pendingMarkPosition.canvasY, price, quantity);
+                }
+                closeBubble();
+            });
+            
+            // إغلاق عند النقر خارج الفقاعة
+            setTimeout(() => {
+                const closeHandler = (e) => {
+                    if (activeBubble && !activeBubble.contains(e.target)) {
+                        closeBubble();
+                        document.removeEventListener('click', closeHandler);
+                    }
+                };
+                document.addEventListener('click', closeHandler);
+            }, 10);
+        }
+        
+        function addMarkAt(canvasX, canvasY, price, quantity) {
+            if (!imageLoaded) {
+                alert("الرجاء رفع الصورة أولاً");
+                return false;
+            }
+            if (canvasX < 0 || canvasX > canvas.width || canvasY < 0 || canvasY > canvas.height) return false;
+            
+            const colorIndex = marks.length % colorPalette.length;
+            const newMark = {
+                id: nextId++,
+                x: canvasX,
+                y: canvasY,
+                price: price,
+                quantity: quantity,
+                color: colorPalette[colorIndex]
+            };
+            marks.push(newMark);
+            refreshUI();
+            return true;
+        }
+        
+        // معالج النقر على canvas (يدعم الفأرة واللمس)
+        function handleCanvasTap(e) {
+            if (!imageLoaded) {
+                alert("📸 ارفع صورة المنتجات أولاً");
+                return;
+            }
+            if (activeBubble) {
+                closeBubble(); // إغلاق الفقاعة إذا كانت مفتوحة
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
+            
+            const canvasX = (clientX - rect.left) * scaleX;
+            const canvasY = (clientY - rect.top) * scaleY;
+            
+            if (canvasX >= 0 && canvasX <= canvas.width && canvasY >= 0 && canvasY <= canvas.height) {
+                showNumberPriceBubble(clientX, clientY, { canvasX, canvasY });
+            }
+        }
+        
+        function loadImageFromFile(file) {
+            if (!file || !file.type.match('image.*')) {
+                alert("يرجى اختيار صورة JPG/PNG");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = new Image();
+                img.onload = function() {
+                    originalImage = img;
+                    imageLoaded = true;
+                    marks = [];
+                    nextId = 1;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    refreshUI();
+                    if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function clearAllMarks() {
+            if (marks.length === 0) return;
+            if (confirm("🗑️ حذف جميع الطلبات من على الصورة؟")) {
+                marks = [];
+                nextId = 1;
+                refreshUI();
+            }
+        }
+        
+        function isValidPhone() {
+            let phone = phoneInput.value.trim();
+            if (phone === "") {
+                phoneError.style.display = "block";
+                return false;
+            }
+            const phoneRegex = /^[0-9]{9,15}$/;
+            if (!phoneRegex.test(phone)) {
+                phoneError.style.display = "block";
+                phoneError.innerText = "رقم غير صالح (أرقام فقط 9-15 خانة)";
+                return false;
+            }
+            phoneError.style.display = "none";
+            return true;
+        }
+        
+        async function prepareFinalImageWithPhone() {
+            if (!imageLoaded) {
+                alert("لا توجد صورة، ارفع الصورة أولاً");
+                return null;
+            }
+            if (!isValidPhone()) return null;
+            refreshUI();
+            return new Promise((resolve) => {
+                canvas.toBlob(blob => resolve(blob), 'image/png');
+            });
+        }
+        
+        async function shareViaWhatsApp() {
+            if (!imageLoaded) { alert("ارفع الصورة أولا"); return; }
+            if (!isValidPhone()) return;
+            const blob = await prepareFinalImageWithPhone();
+            if (!blob) return;
+            const phone = phoneInput.value.trim();
+            const fileName = `${phone}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'طلب منتجات',
+                        text: `طلب العميل رقم ${phone}`,
+                        files: [file]
+                    });
+                    closeAppAfterSend();
+                } catch(err) {
+                    if(err.name !== "AbortError") alert("لم نتمكن من المشاركة: "+err.message);
+                }
+            } else {
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                alert(`تم تحميل الصورة باسم ${fileName} 🎉 يمكنك إرسالها يدوياً عبر واتساب. سيتم إغلاق التطبيق.`);
+                closeAppAfterSend();
+            }
+        }
+        
+        async function shareViaTelegram() {
+            if (!imageLoaded) { alert("ارفع الصورة أولا"); return; }
+            if (!isValidPhone()) return;
+            const blob = await prepareFinalImageWithPhone();
+            if (!blob) return;
+            const phone = phoneInput.value.trim();
+            const fileName = `${phone}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'طلب منتجات',
+                        text: `طلب تليجرام للعميل ${phone}`,
+                        files: [file]
+                    });
+                    closeAppAfterSend();
+                } catch(err) {
+                    if(err.name !== "AbortError") alert("المشاركة فشلت: "+err.message);
+                }
+            } else {
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                alert(`تم حفظ الصورة باسم ${fileName}. أرسلها عبر تليجرام. سيغلق التطبيق الآن.`);
+                closeAppAfterSend();
+            }
+        }
+        
+        function closeAppAfterSend() {
+            setTimeout(() => {
+                window.close();
+                document.body.innerHTML = "<div style='text-align:center; padding:50px; background:#0a1a2e; color:white; height:100vh;'><h2>✅ تم إرسال الطلب</h2><p>يمكنك إغلاق الصفحة الآن.</p></div>";
+            }, 800);
+        }
+        
+        // رفع الصورة
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                loadImageFromFile(e.target.files[0]);
+            }
+            fileInput.value = '';
+        });
+        
+        canvas.addEventListener('click', handleCanvasTap);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleCanvasTap(e);
+        }, { passive: false });
+        
+        clearBtn.addEventListener('click', clearAllMarks);
+        shareWhatsBtn.addEventListener('click', shareViaWhatsApp);
+        shareTeleBtn.addEventListener('click', shareViaTelegram);
+        
+        function initialDrawEmpty() {
+            canvas.width = Math.min(window.innerWidth - 40, 800);
+            canvas.height = 500;
+            ctx.fillStyle = "#eef2f5";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#1e3c72";
+            ctx.font = "bold 18px 'Segoe UI'";
+            ctx.textAlign = "center";
+            ctx.fillText("⬆️ ارفع صورة المنتجات", canvas.width/2, canvas.height/2);
+        }
+        initialDrawEmpty();
+        
+        phoneInput.addEventListener('input', () => {
+            if (imageLoaded) refreshUI();
+            isValidPhone();
+        });
+        
+        window.addEventListener('load', () => {
+            document.documentElement.requestFullscreen?.().catch(e=>console.log);
+        });
+    })();
+</script>
+</body>
+</html>
